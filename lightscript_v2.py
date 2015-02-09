@@ -89,7 +89,7 @@ def print_file():
             
             time.sleep(0.001)
 
-def mode_1():
+def random_colors():
     while(True):
         for led in range(12):
 
@@ -101,34 +101,7 @@ def mode_1():
 
         time.sleep(0.05)
 
-def mode_2():
-    
-    t = time.time()
-    state = 0
-
-    while(True):
-
-        for led in range(12):
-            r = randrange(255)
-            g = randrange(255)
-            b = randrange(255)
-            can.set_color(0x300, led, r, g, b) 
-            
-            if(state == 0):
-                can.set_state(0x300, 0xaaa)
-            elif(state == 1):
-                can.set_state(0x300, 0x555)
-            time.sleep(0.2)
-
-        if(time.time() - t > 0 and time.time() - t < 3):
-            state = 1
-        elif(time.time() - t > 3 and time.time() - t < 10):
-            state = 0
-            t = time.time()
-            
-        time.sleep(0.1)
-
-def mode_3(r, g, b):
+def swipe_right_all(r, g, b):
     r = r
     g = g
     b = b

@@ -18,8 +18,6 @@ import debug as dbug
 import settings
 import queue
 import datetime
-import subprocess as subproc
-#import ast
 
 HOST = settings.WEB_SERVER_HOST
 PORT = settings.WEB_SERVER_PORT
@@ -86,11 +84,12 @@ def record_request(params):
         if('heartbeat' in request):
             db_cur.execute("INSERT INTO heartbeats (host, ip) VALUES ('%s', '%s')" % (request['heartbeat']['host'], request['heartbeat']['ip']))
             dbug.debug("Heartbeat stored.")
+            db_conn.commit()
         elif('checkin' in request):
             db_cur.execute("INSERT INTO check_ins (barcode, host) VALUES ('%s', '%s')" % (request['checkin']['barcode'],request['checkin']['address']))
             dbug.debug("Check in stored.")
+            db_conn.commit()
 
-        db_conn.commit()
     except Exception as e:
         dbug.debug("Recording request failed: " + str(e))
 
