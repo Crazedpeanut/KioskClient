@@ -2,12 +2,11 @@
 Author: John Kendall
 Date: 18/12/14
 
-Description: Reads from the hidraw device file. As a way of binding to a barcode scanner
-            (Requires either root permissions or read permission of the hidraw device file)
+Description: Reads from the hid raw device file. As a way of binding to a bar code scanner
+            (Requires either root permissions or read permission of the hid raw device file)
 '''
 import time
 import sys
-import re
 import threading
 import USBKey_converter as USBKey
 import debug as dbug
@@ -25,7 +24,7 @@ class bcode(threading.Thread):
         while(True):
             try:
                 f = open('/dev/hidraw0', 'r')
-						
+
                 while(True):
                     barcode = ""
 
@@ -41,17 +40,18 @@ class bcode(threading.Thread):
 
             except Exception as e:
                 dbug.debug(str(e))
+                time.sleep(0.2)
 
 def print_barcode(barcode):
-	sys.stdout.write(barcode)
+    sys.stdout.write(barcode)
 
 def start_listening(callback):
-	bcode_listen_thread = bcode(callback)
-	bcode_listen_thread.start()
+    bcode_listen_thread = bcode(callback)
+    bcode_listen_thread.start()
 
 def main():
-	thread = bcode(print_barcode)
-	thread.start()
+    thread = bcode(print_barcode)
+    thread.start()
 
 if(__name__ == "__main__"):
-	main()
+    main()

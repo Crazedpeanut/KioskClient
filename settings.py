@@ -12,9 +12,10 @@ General
 STORED_REQUESTS_FILE = "data.json"
 LOCAL_DB = "data.db"
 '''
+
 Web Server Connection
 '''
-WEB_SERVER_HOST = "Andrew-Laptop"
+WEB_SERVER_HOST = "Weedle"
 WEB_SERVER_PORT = 8000
 ENCODING = "utf-8"
 
@@ -24,5 +25,5 @@ Debug
 DEBUGGING = True
 DEBUGGING_MODE = 1
 PRINT_DATETIME = True
-
+PRINT_FRAME_INFO = True
 

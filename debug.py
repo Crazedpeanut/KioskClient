@@ -9,11 +9,12 @@ import datetime
 import os
 import time
 import settings
+from inspect import currentframe, getframeinfo
 
 DEBUGGING = settings.DEBUGGING
 DEBUGGING_MODE = settings.DEBUGGING_MODE
 PRINT_DATETIME = settings.PRINT_DATETIME
-
+PRINT_FRAME_INFO = settings.PRINT_FRAME_INFO
 debugging_active = False
 
 def debug(message):
@@ -21,7 +22,14 @@ def debug(message):
 
     if(DEBUGGING == True):
         dbugmsg = "DEBUG: " + message
-		
+        
+        if(PRINT_FRAME_INFO):
+            frameinfo = currentframe()
+            filename = getframeinfo(frameinfo.f_back).filename
+            
+            dbugmsg += " | Filename: " + filename
+            dbugmsg += " | Line Num: " + str(frameinfo.f_back.f_lineno)
+
         if(PRINT_DATETIME == True):
             current_time = datetime.datetime.now()
             dbugmsg += " | " + str(current_time)

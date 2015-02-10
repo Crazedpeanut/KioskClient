@@ -10,10 +10,16 @@ import urllib
 import debug as dbug
 import gzip
 import settings
+import requests
 
 DATA_FILE = settings.STORED_REQUESTS_FILE
 ENCODING = settings.ENCODING
 HTTP_CONN_DEBUG_LVL = 0
+
+def send_file(host, port, url, files):
+    request_url = 'http://' + host + ':' + str(port) + url
+    r = requests.post(request_url, files=files)
+    
 
 def http_request(params):
     host = params["host"]
@@ -25,7 +31,6 @@ def http_request(params):
     connection_failed_callback = params["connection_failed_callback"];
 	
     data = urllib.parse.urlencode(data)
-    print(data)
 
     conn = http.client.HTTPConnection(host, port)
     conn.set_debuglevel(HTTP_CONN_DEBUG_LVL)
@@ -36,6 +41,7 @@ def http_request(params):
         
         response = conn.getresponse()
         result = response.read()
+        print(result.decode(ENCODING))
         conn.close()
         
         f = open("tmp.txt.gz", "wb")
@@ -57,7 +63,7 @@ def http_request(params):
         dbug.debug("Connection Failed: "+ str(e))
         connection_failed_callback(data)
         
-def http_request(host, port, method, resource, data):
+def http_request_2(host, port, method, resource, data):
 
     data = urllib.parse.urlencode(data)
 
@@ -70,7 +76,6 @@ def http_request(host, port, method, resource, data):
         
         response = conn.getresponse()
         result = response.read()
-        
         conn.close()
         
         f = open("tmp.txt.gz", "wb")
