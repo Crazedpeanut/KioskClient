@@ -5,7 +5,7 @@ Date: 18/12/14
 Description: Assorted functions to be called by the http_result_handler
 '''
 
-#import lightscript_v2 as ls
+import lightscript_v2 as ls
 import time
 import simplejson as json
 import os
@@ -25,16 +25,24 @@ def update_lights(data):
 def load_sequence(data):
     global saving_sequence
 
+    dbug.debug("Saving sequence")
+
     while(saving_sequence == True):
         time.sleep(0.5)
+
+    try:
+        os.remove("sequence"+sequence_num+".sequence")
+    except Exception as e:
+        dbug.debug(str(e))
 
     try:
         saving_sequence = True
         sequence_num = data["sequence_num"]
         dbug.debug("Saving data")
-        os.remove("sequence"+sequence_num+".sequence")
+        
         f = open("sequence"+sequence_num+".sequence", "w")
         f.write(str(data))
+        f.close() 
     except Exception as e:
         dbug.debug(str(e))
     finally:
@@ -45,6 +53,7 @@ def load_sequence(data):
 def play_sequence(data):
     global playing_sequence
 
+    dbug.debug("About to play sequence..")
     while(playing_sequence == True):
         time.sleep(0.5)
 
@@ -52,13 +61,15 @@ def play_sequence(data):
         playing_sequence = True
         f = open("sequence" + data["sequence_num"] + ".sequence", "r")
         data = f.read()
+        f.close()
+        dbug.debug(data)
         dbug.debug("playing sequence...\n: " + data)
         data = data.replace("\'", "\"")
         data = json.loads(data) 
         for x in range(int(data["loop"])):
             for frame in data['frames']:
                 for led in frame['leds']:
-                    ls.set_color_grid_pixel_hex(led["x"], led["y"], led["color"])
+                    ls.set_color_grid_pixel_hex(int(led["x"]), int(led["y"]), led["color"])
                     time.sleep(0.002)
                 time.sleep(1/int(data["fps"]))
 

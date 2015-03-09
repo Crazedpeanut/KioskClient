@@ -18,8 +18,14 @@ HTTP_CONN_DEBUG_LVL = 0
 
 def send_file(host, port, url, files):
     request_url = 'http://' + host + ':' + str(port) + url
-    r = requests.post(request_url, files=files)
-    
+
+    try:
+        r = requests.post(request_url, files=files, timeout=settings.HTTP_TIMEOUT)
+
+        return r.text
+    except Exception as e:
+        dbug.debug(str(e))
+        return None
 
 def http_request(params):
     host = params["host"]
@@ -65,8 +71,9 @@ def http_request(params):
         
 def http_request_2(host, port, method, resource, data):
 
+    print(data)
     data = urllib.parse.urlencode(data)
-
+    print(data)
     conn = http.client.HTTPConnection(host, port)
     conn.set_debuglevel(HTTP_CONN_DEBUG_LVL)
 
@@ -76,21 +83,8 @@ def http_request_2(host, port, method, resource, data):
         
         response = conn.getresponse()
         result = response.read()
-        conn.close()
-        
-        f = open("tmp.txt.gz", "wb")
-        f.write(result)
-
-        f.close()
-        f = gzip.open("tmp.txt.gz", "r")
-        result = f.read()
-        f.close()
-
-        f = open(DATA_FILE, "w")
-        f.write("") #Clear file with queued messages
-
-        f.close()
-
+        print(result) 
+        conn.close() 
         return result
     
     except Exception as e:

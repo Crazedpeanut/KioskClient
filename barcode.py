@@ -10,9 +10,12 @@ import sys
 import threading
 import USBKey_converter as USBKey
 import debug as dbug
+import serial
+import settings
 
 buffersize = 16
 TIME_WAIT = 0.2
+
 
 class bcode(threading.Thread):
     
@@ -21,26 +24,38 @@ class bcode(threading.Thread):
         threading.Thread.__init__(self)
 
     def run(self):
+        
+        ser = serial.Serial(port=settings.SERIAL_DEVICE, baudrate=settings.SERIAL_DEVICE_BAUD)
+        #ser.open()
+        
         while(True):
-            try:
-                f = open('/dev/hidraw0', 'r')
+            try: 
 
-                while(True):
-                    barcode = ""
+                f = open(settings.USB_DEVICE, 'r')
+                    
+                barcode = ""
 
+                b = f.read(buffersize)
+                dec = USBKey.usbkey_to_char(b[2])
+
+                while(dec is not None):
+                    barcode = barcode + str(dec)
                     b = f.read(buffersize)
                     dec = USBKey.usbkey_to_char(b[2])
-
-                    while(dec is not None):
-                        barcode = barcode + str(dec)
-                        b = f.read(buffersize)
-                        dec = USBKey.usbkey_to_char(b[2])
-                    self.callback(barcode)
-                    time.sleep(TIME_WAIT)
+                self.callback(barcode)
+                time.sleep(TIME_WAIT)
 
             except Exception as e:
                 dbug.debug(str(e))
-                time.sleep(0.2)
+            
+            try:
+                barcode = ser.readline()
+                if(barcode is not None):
+                    self.callback(barcode.decode('UTF-8'))
+            except Exception as e:
+                dbug.debug(str(e))
+            
+            time.sleep(0.2)
 
 def print_barcode(barcode):
     sys.stdout.write(barcode)

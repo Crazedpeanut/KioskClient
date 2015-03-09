@@ -12,7 +12,7 @@ import sqlite3 as lite
 import kiosk_http as http
 import time, datetime
 import simplejson as json
-import read_from_hidraw as bcode_listen
+import barcode as bcode_listen
 import socket
 import commands
 import threading
@@ -20,6 +20,9 @@ import debug as dbug
 import settings
 import queue
 import datetime
+import gzip
+import lightscript_v2 as lb
+import button_listener as difficulty
 
 HOST = settings.WEB_SERVER_HOST
 PORT = settings.WEB_SERVER_PORT
@@ -29,9 +32,9 @@ TEST_RESOURCE = "/barcode/test.php"
 #Resource must end with slash to work with Andrews' Django App
 ADD_CHECKIN = "/kiosk/user_checkin/" 
 ADD_HEARTBEAT = "/kiosk/heartbeat_checkin/"
-ADD_CHECKIN_BATCH = "/kiosk/checkin_batch/"
+ADD_CHECKIN_BATCH = "/kiosk/user_checkin_file/"
 
-PAUSE_BETWEEN_HEARBEAT = 60
+PAUSE_BETWEEN_HEARBEAT = settings.HEARTBEAT_WAIT
 DATA_FILE = settings.STORED_REQUESTS_FILE
 MAINLOOP_PAUSE = 0.001
 LOCALDB = settings.LOCAL_DB
@@ -55,8 +58,8 @@ class thread_worker(threading.Thread):
 def create_check_in(barcode):	
     kiosk = socket.gethostname()
     timestamp = str(datetime.datetime.now())
-    
-    return {"checkin":{"barcode": barcode, "address": kiosk, "timestamp":timestamp}}
+    diff = difficulty.get_difficulty()
+    return {"checkin":{"barcode": barcode, "address": kiosk, "timestamp":timestamp, "difficulty":diff}}
 
 def file_operation_queue_add(delegate, params):
     queue_node = {"delegate" : delegate, "params":params}
@@ -111,7 +114,10 @@ def send_heartbeat():
     
     if(result is not None):
         http_result_handler(result)
+        send_stored_data()
+        dbug.debug('Heartbeat has been sent')
     else:
+        dbug.debug('Heartbeat failed')
         request = str(heartbeat)
         params = {"request": request}
         file_operation_queue_add(record_request, params) 
@@ -123,19 +129,25 @@ def send_checkin(checkin):
     
     if(result is not None):
         http_result_handler(result)
+        dbug.debug('Checkin has been sent')
     else:
+        dbug.debug('Checkin sending failed')
         request = str(checkin)
         params = {"request": request}
         file_operation_queue_add(record_request, params) 
 
-def send_stored_data():
-     
+def send_stored_data(): 
     db_conn = lite.connect(LOCALDB)
     db_cur = db_conn.cursor()
 
     db_cur.execute("SELECT * from check_ins")
     rows = db_cur.fetchall()
-   
+  
+    if(len(rows) == 0):
+        return
+    
+    dbug.debug("Sending stored data..")
+    
     checkins = []
 
     for row in rows:
@@ -144,28 +156,28 @@ def send_stored_data():
         timestamp = row[3]
         checkins.append({'barcode':barcode, 'address':host, 'timestamp':timestamp})
 
-    f = open("tmp.txt.gz", "wb")
-    f.write(bytes(str({'checkins':checkins}), 'UTF-8'))
+    f = gzip.open("tmp.txt.gz", "wb")
+    f.write(bytes(str({'checkins':checkins}), 'UTF-8')) 
+
+    f = open('tmp.txt.gz', "rb")
+    files = {'file': f}
     
-    files = {'files': open('tmp.txt.gz', "rb")}
-    
-    http.send_file(HOST, PORT, ADD_CHECKIN_BATCH,files)
-    
-    '''
-        check_in = create_check_in(row[1])
-        
-        create_thread_worker(send_checkin, check_in)
-        query = "DELETE FROM check_ins WHERE id = %d" % (row[0])
-        db_cur.execute(query)
+    result = http.send_file(HOST, PORT, ADD_CHECKIN_BATCH,files)
+
+    if(result is not None):
+        db_cur.execute("DELETE FROM check_ins WHERE 1=1")
         db_conn.commit()
-    '''
+        dbug.debug("Deleted stored check ins")
+        
+        if(len(result) > 0):
+            http_result_handler(result)
+    else:
+        dbug.debug("Couldn't send stored checkins this time..")
      
 def http_result_handler(result):
     command_list = {"play_sequence":commands.play_sequence,"test": commands.test_command, "loadsequence":commands.load_sequence, "printdata":commands.print_data, "updateleds":commands.update_lights, "blanklightars":commands.blank_lightbars}
 
     LAST_SERVER_CONTACT = datetime.datetime.now()
-
-    send_stored_data()
 
     if(len(result) < 1):
         return
@@ -182,6 +194,8 @@ def http_result_handler(result):
         dbug.debug("response from webserver probably isn't JSON format.. " + str(e))
         
 def bcode_handler(bcode):
+    #lb.swipe_right_all(255, 0, 0)
+    bcode = bcode.rstrip()
     check_in = create_check_in(bcode)
     dbug.debug('adding thread worker..')
     create_thread_worker(send_checkin, check_in)

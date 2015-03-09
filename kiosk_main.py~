@@ -1,3 +1,5 @@
+#!/usr/bin/python3
+
 '''
 Author: John Kendall
 Date: 18/12/14
@@ -10,7 +12,7 @@ import sqlite3 as lite
 import kiosk_http as http
 import time, datetime
 import simplejson as json
-import read_from_hidraw as bcode_listen
+import barcode as bcode_listen
 import socket
 import commands
 import threading
@@ -18,18 +20,20 @@ import debug as dbug
 import settings
 import queue
 import datetime
-#import ast
+import gzip
+import lightscript_v2 as lb
 
 HOST = settings.WEB_SERVER_HOST
 PORT = settings.WEB_SERVER_PORT
 METHOD = "POST"
 TEST_RESOURCE = "/barcode/test.php"
 
-#Resource must end with slash
-ADD_CHECKIN = "/kiosk/checkin/" 
-ADD_HEARTBEAT = "/kiosk/heartbeat/"
+#Resource must end with slash to work with Andrews' Django App
+ADD_CHECKIN = "/kiosk/user_checkin/" 
+ADD_HEARTBEAT = "/kiosk/heartbeat_checkin/"
+ADD_CHECKIN_BATCH = "/kiosk/user_checkin_file/"
 
-PAUSE_BETWEEN_HEARBEAT = 60
+PAUSE_BETWEEN_HEARBEAT = settings.HEARTBEAT_WAIT
 DATA_FILE = settings.STORED_REQUESTS_FILE
 MAINLOOP_PAUSE = 0.001
 LOCALDB = settings.LOCAL_DB
@@ -37,7 +41,6 @@ LOCALDB = settings.LOCAL_DB
 LAST_SERVER_CONTACT = ""
 
 data_file_operation_queue = queue.Queue()
-threads = []
 
 class thread_worker(threading.Thread):
     def __init__(self, delegate, delegate_params):
@@ -51,11 +54,11 @@ class thread_worker(threading.Thread):
         else:
             self.delegate()
 
-        refresh_thread_array()
-
 def create_check_in(barcode):	
     kiosk = socket.gethostname()
-    return {"checkin":{"barcode": barcode, "address": kiosk}}
+    timestamp = str(datetime.datetime.now())
+     
+    return {"checkin":{"barcode": barcode, "address": kiosk, "timestamp":timestamp}}
 
 def file_operation_queue_add(delegate, params):
     queue_node = {"delegate" : delegate, "params":params}
@@ -69,36 +72,28 @@ def file_operation_queue_perform_operations():
             operation = node["delegate"]
             params = node["params"]
             operation(params)
-            time.sleep(0.2)
-
-def http_failed_connection_handler(request):
-    request = str(request)
-    params = {"request": request}
-    file_operation_queue_add(record_request, params) 
+        time.sleep(0.2)
 
 def record_request(params):
-    request = params["request"]
-    print(request)
+    request = str(params['request']).replace('\'', '\"')
+    
     try:
-        request = str(request)
         dbug.debug("Recording request for retransmission at a later time..")
         
-        #file_append = open(DATA_FILE, 'a')
-        #request.replace("\'", "\"")
-        #file_append.write(request)
-
         db_conn = lite.connect(LOCALDB)
         db_cur = db_conn.cursor()
 
         request = json.loads(request)
+        
         if('heartbeat' in request):
             db_cur.execute("INSERT INTO heartbeats (host, ip) VALUES ('%s', '%s')" % (request['heartbeat']['host'], request['heartbeat']['ip']))
             dbug.debug("Heartbeat stored.")
-        elif('checkin'):
-            db_cur.execute("INSERT INTO check_ins (barcode, host) VALUES ('%s', '%s')" % (request['checkin']['barcode'],request['checkin']['host']))
+            db_conn.commit()
+        elif('checkin' in request):
+            db_cur.execute("INSERT INTO check_ins (barcode, host, timestamp) VALUES ('%s', '%s', '%s')" % (request['checkin']['barcode'],request['checkin']['address'], request['checkin']['timestamp']))
             dbug.debug("Check in stored.")
+            db_conn.commit()
 
-        db_conn.commit()
     except Exception as e:
         dbug.debug("Recording request failed: " + str(e))
 
@@ -106,38 +101,82 @@ def create_heartbeat():
     timestamp = str(datetime.datetime.now())
     kiosk = socket.gethostname()
     ip = socket.gethostbyname(kiosk)
-
+    
     heartbeat = {"heartbeat":{"timestamp": timestamp, "host": kiosk, "ip": ip}}
     return heartbeat
 
 def send_heartbeat():
     heartbeat = create_heartbeat()
-    heartbeat = heartbeat["heartbeat"]
+    heartbeat_data = heartbeat["heartbeat"]
     
-    params = {"host":HOST, "port":PORT, "method":METHOD, "resource":ADD_HEARTBEAT, "data":heartbeat, "result_callback":http_result_handler, "connection_failed_callback":http_failed_connection_handler}
-    http.http_request(params)
-		
-def send_stored_data():
+    result = http.http_request_2(HOST, PORT, METHOD, ADD_HEARTBEAT, heartbeat_data)
+    
+    if(result is not None):
+        http_result_handler(result)
+        send_stored_data()
+        dbug.debug('Heartbeat has been sent')
+    else:
+        dbug.debug('Heartbeat failed')
+        request = str(heartbeat)
+        params = {"request": request}
+        file_operation_queue_add(record_request, params) 
+        
+def send_checkin(checkin):
+    check_in_data = checkin["checkin"]
+    
+    result = http.http_request_2(HOST, PORT, METHOD, ADD_CHECKIN, check_in_data)
+    
+    if(result is not None):
+        http_result_handler(result)
+        dbug.debug('Checkin has been sent')
+    else:
+        dbug.debug('Checkin sending failed')
+        request = str(checkin)
+        params = {"request": request}
+        file_operation_queue_add(record_request, params) 
+
+def send_stored_data(): 
     db_conn = lite.connect(LOCALDB)
     db_cur = db_conn.cursor()
 
-    for row in db_cur.execute("SELECT * from check_ins"):
-        check_in = create_check_in(row[1])
-
-        params = {"host":HOST, "port":PORT, "method":METHOD, "resource":ADD_CHECKIN, "data":check_in, "result_callback":http_result_handler, "connection_failed_callback":http_failed_connection_handler}  
+    db_cur.execute("SELECT * from check_ins")
+    rows = db_cur.fetchall()
+  
+    if(len(rows) == 0):
+        return
     
-        create_thread_worker(http.http_request, params)
-        
-        query = "DELETE FROM check_ins WHERE id = %d" % (row[0])
-        db_cur.execute(query)
+    dbug.debug("Sending stored data..")
+    
+    checkins = []
+
+    for row in rows:
+        barcode = row[1]
+        host = row[2]
+        timestamp = row[3]
+        checkins.append({'barcode':barcode, 'address':host, 'timestamp':timestamp})
+
+    f = gzip.open("tmp.txt.gz", "wb")
+    f.write(bytes(str({'checkins':checkins}), 'UTF-8')) 
+
+    f = open('tmp.txt.gz', "rb")
+    files = {'file': f}
+    
+    result = http.send_file(HOST, PORT, ADD_CHECKIN_BATCH,files)
+
+    if(result is not None):
+        db_cur.execute("DELETE FROM check_ins WHERE 1=1")
         db_conn.commit()
+        dbug.debug("Deleted stored check ins")
         
+        if(len(result) > 0):
+            http_result_handler(result)
+    else:
+        dbug.debug("Couldn't send stored checkins this time..")
+     
 def http_result_handler(result):
     command_list = {"play_sequence":commands.play_sequence,"test": commands.test_command, "loadsequence":commands.load_sequence, "printdata":commands.print_data, "updateleds":commands.update_lights, "blanklightars":commands.blank_lightbars}
 
     LAST_SERVER_CONTACT = datetime.datetime.now()
-
-    send_stored_data()
 
     if(len(result) < 1):
         return
@@ -152,28 +191,19 @@ def http_result_handler(result):
                 command_list[comm['command']](comm)
     except Exception as e:
         dbug.debug("response from webserver probably isn't JSON format.. " + str(e))
-		
+        
 def bcode_handler(bcode):
+    #lb.swipe_right_all(255, 0, 0)
+    bcode = bcode.rstrip()
     check_in = create_check_in(bcode)
-
-    check_in = check_in["checkin"]
-
-    params = {"host":HOST, "port":PORT, "method":METHOD, "resource":ADD_CHECKIN, "data":check_in, "result_callback":http_result_handler, "connection_failed_callback":http_failed_connection_handler}  
-
-    create_thread_worker(http.http_request, params)
+    dbug.debug('adding thread worker..')
+    create_thread_worker(send_checkin, check_in)
 
 def create_thread_worker(delegate, delegate_params):
     new_thread = thread_worker(delegate, delegate_params)
     new_thread.start()
-    threads.append(new_thread)
+    dbug.debug("Creating new thread. Count: " + str(len(threading.enumerate())))
     return new_thread
-
-def refresh_thread_array():
-    global threads
-
-    for t in threading.enumerate():
-        threads.append(t)
-
 
 def ticker(params):
     time_in_seconds = params["time"]
@@ -182,6 +212,7 @@ def ticker(params):
 
     while(True):
         time.sleep(time_in_seconds)
+        
         if(delegate_params is not None):
             delegate(delegate_params)
         else:
@@ -189,19 +220,14 @@ def ticker(params):
 
 def main():
     bcode_listen.start_listening(bcode_handler)
-
+    
     ticker_params = {"time":PAUSE_BETWEEN_HEARBEAT, "delegate": send_heartbeat, "delegate_params": None}
-    #create_thread_worker(ticker, ticker_params)	
-
+    create_thread_worker(ticker, ticker_params)	
+    
     create_thread_worker(file_operation_queue_perform_operations, None)
 
-    bcode_handler('10101010101')
-    
-    while(True):    	
+    while(True):    	  
         time.sleep(MAINLOOP_PAUSE)
 
 if __name__ == "__main__":
 	main()	
-
-	
-
