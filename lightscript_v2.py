@@ -5,7 +5,8 @@ Date: 18/12/14
 Description: Assorted functions to control lightbars. Contains methods to save and play sequences, and other stuff
 '''
 
-import lb as can
+#import lb as can
+import can_stuff as can
 import time
 from random import randrange
 import debug as dbug 
@@ -123,22 +124,5 @@ def reset_leds():
         can.set_color(0x300, led, 0, 0, 0)
         time.sleep(0.0001)   
 
-def set_color_grid_pixel_hex(x, y, hexstr):
-    
-    r = int(hexstr[0:2], 16)
-    g = int(hexstr[2:4], 16)
-    b = int(hexstr[4:6], 16)
-
-    set_color_grid_pixel(int(x),int(y), r, g, b)
-
-def set_color_grid_pixel(x, y, r, g, b):
-    
-    if(x < 0 or y < 0):
-        return
-
-    try:
-        can.set_color(light_bars[y], x, r, g, b)
-    except Exception as e:
-        dbug.debug(str(e))
     #print("x: " + str(x) + " y: " + str(y) + " color: " + str(r) + str(g) + str(b))
 

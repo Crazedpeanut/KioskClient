@@ -6,7 +6,6 @@ Date: 18/12/14
 
 Description: Main script for the kiosk application. Functions called from the main loop are ran in separate threads
 '''
-#TODO - Don't add full http request to data file after failed connection
 
 import sqlite3 as lite
 import kiosk_http as http
@@ -21,8 +20,7 @@ import settings
 import queue
 import datetime
 import gzip
-import lightscript_v2 as lb
-import button_listener as difficulty
+from can_stuff import CanOperations
 
 HOST = settings.WEB_SERVER_HOST
 PORT = settings.WEB_SERVER_PORT
@@ -41,6 +39,8 @@ LOCALDB = settings.LOCAL_DB
 
 LAST_SERVER_CONTACT = ""
 
+can = CanOperations()
+
 data_file_operation_queue = queue.Queue()
 
 class thread_worker(threading.Thread):
@@ -58,7 +58,7 @@ class thread_worker(threading.Thread):
 def create_check_in(barcode):	
     kiosk = socket.gethostname()
     timestamp = str(datetime.datetime.now())
-    diff = difficulty.get_difficulty()
+    diff = 0 #TEMPORARY VALUE
     return {"checkin":{"barcode": barcode, "address": kiosk, "timestamp":timestamp, "difficulty":diff}}
 
 def file_operation_queue_add(delegate, params):
@@ -175,7 +175,9 @@ def send_stored_data():
         dbug.debug("Couldn't send stored checkins this time..")
      
 def http_result_handler(result):
-    command_list = {"play_sequence":commands.play_sequence,"test": commands.test_command, "loadsequence":commands.load_sequence, "printdata":commands.print_data, "updateleds":commands.update_lights, "blanklightars":commands.blank_lightbars}
+    
+    canCommands = can.can
+    command_list = {"play_sequence":canCommands.play_sequence, "loadsequence":canCommands.load_sequence, "updateleds":canCommands.update_lights, "blanklightars":canCommands.blank_lightbars}
 
     LAST_SERVER_CONTACT = datetime.datetime.now()
 
@@ -196,6 +198,7 @@ def http_result_handler(result):
 def bcode_handler(bcode):
     #lb.swipe_right_all(255, 0, 0)
     bcode = bcode.rstrip()
+    dbug.debug("Got a barcode!: %s" % bcode)
     check_in = create_check_in(bcode)
     dbug.debug('adding thread worker..')
     create_thread_worker(send_checkin, check_in)
@@ -219,8 +222,13 @@ def ticker(params):
         else:
             delegate()
 
+def button_handler(address, esource, eclass, num):
+    print("Button %d pressed" % num)
+			
 def main():
     bcode_listen.start_listening(bcode_handler)
+    
+    can.register(button_handler)
     
     ticker_params = {"time":PAUSE_BETWEEN_HEARBEAT, "delegate": send_heartbeat, "delegate_params": None}
     create_thread_worker(ticker, ticker_params)	
