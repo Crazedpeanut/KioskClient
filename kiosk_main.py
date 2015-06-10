@@ -114,13 +114,12 @@ def send_heartbeat():
     
     if(result is not None):
         http_result_handler(result)
-        send_stored_data()
         dbug.debug('Heartbeat has been sent')
     else:
         dbug.debug('Heartbeat failed')
         request = str(heartbeat)
-        params = {"request": request}
-        file_operation_queue_add(record_request, params) 
+        #params = {"request": request}
+        #file_operation_queue_add(record_request, params) 
         
 def send_checkin(checkin):
     check_in_data = checkin["checkin"]
@@ -132,9 +131,9 @@ def send_checkin(checkin):
         dbug.debug('Checkin has been sent')
     else:
         dbug.debug('Checkin sending failed')
-        request = str(checkin)
+        '''request = str(checkin)
         params = {"request": request}
-        file_operation_queue_add(record_request, params) 
+        file_operation_queue_add(record_request, params) '''
 
 def send_stored_data(): 
     db_conn = lite.connect(LOCALDB)

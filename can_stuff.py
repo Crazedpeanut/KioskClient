@@ -140,7 +140,7 @@ class Can:
     
     def set_color_grid_pixel_hex(self, x, y, color):
         if x > -1 and x < 255 and y > -1 and y < 255:
-            self.led(self.light_bars[x], y, color)
+            self.led(self.light_bars[y], x, color)
     
     '''
     def set_color_grid_pixel(self, x, y, r, g, b):
@@ -246,13 +246,8 @@ class Can:
             sleep(0.5)
     
         try:
-            os.remove("sequence"+sequence_num+".sequence")
-        except Exception as e:
-            dbug.debug(str(e))
-    
-        try:
             self.saving_sequence = True
-            self.sequence_num = data["sequence_num"]
+            sequence_num = data["sequence_num"]
             dbug.debug("Saving data")
             
             f = open("sequence"+sequence_num+".sequence", "w")
@@ -310,7 +305,6 @@ class Can:
         for bar in self.light_bars:
             for l in range(self.leds_per_bar):
                 self.led(bar, l,0x000000)
-                print("LED: (%d, %d) to 0x000000" % (bar, l))
                 sleep(0.0001) 
     
 
@@ -375,7 +369,6 @@ class CanOperations:
 
     def register(self, delegate):
         self.event_list.append(delegate)
-        print('Register delegate')
 
     def handle_event(self, address, esource, eclass, num):
         print('received event: %d %d %d %d' % (address, esource, eclass, num))
