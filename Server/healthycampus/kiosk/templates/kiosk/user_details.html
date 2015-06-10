@@ -1,0 +1,23 @@
+{% extends 'main_site/base.html' %}
+
+{% block content %}
+	{% if error_message %}
+		{{ error_message }}
+	{% else %}
+		<strong> Viewing details for: {{ user.barcode }} </strong>
+		<br/>
+		<strong> Total Distance Travelled: {{ user.distance_travelled_m }}m </strong> 
+		<br/>
+		<strong> Total Points Earned: {{ user.points }} </strong> 
+		<br/>
+		
+		<h3>Check-ins</h3>
+		<table class="table table-bordered">
+		<th>Kiosk Name</th> <th>Time</th>
+		{% for checkin in user.checkin_set.all %}
+			<tr><td>{{ checkin.kiosk.name }}</td><td>{{ checkin.date }}</td>
+		{% endfor %}
+		</table>
+
+	{% endif %}
+{% endblock %}

@@ -1,0 +1,26 @@
+header
+{
+	background-color: #CCCCCC;
+}
+
+body
+{
+	background-color: white;
+}
+
+footer
+{
+	background-color: #CCCCCC;
+}
+
+th
+{
+	text-align: center;
+	background-color: #EEEEEE;
+}
+
+ul li
+{
+	display: inline-block;
+	background-color: #EEEEEE;
+}

@@ -1,0 +1,41 @@
+{% extends "main_site/base.html" %}
+
+{% block header %}
+<h1>Test CheckIn via Form</h1>
+{% endblock %}
+
+{% block content %}
+	{% if error_message %}<p><strong>{{ error_message }}</strong></p>{% endif %}
+	<h1>User Checkin</h1>
+	<form action="{% url 'kiosk:user_checkin' %}" method="POST">
+		{% csrf_token %}
+		Kiosk Address:<br/>
+		<input type="text" name="address" value="" />
+		<br/>
+		Barcode:<br/>
+		<input type="text" name="barcode" value="" />
+		<br/>
+		Difficulty:<br/>
+		<input type="text" name="difficulty" value="" />
+		<br/><br/>
+		
+		
+		<input type="submit" name="checkin_submit" value="Submit" />
+	</form>
+	
+	<h1>Heartbeat Checkin</h1>
+	<form action="{% url 'kiosk:heartbeat_checkin' %}" method="POST">
+		{% csrf_token %}
+		Kiosk Host:<br/>
+		<input type="text" name="host" value="" />
+		<br/>
+		IP:<br/>
+		<input type="text" name="ip" value="" />
+		<br/>
+		Timestamp (2015-02-02 14:03:59.191380): 
+		<br/>
+		<input type="text" name="timestamp" value="" />
+		<br/><br/>
+		<input type="submit" name="checkin_submit" value="Submit" />
+	</form>
+{% endblock %}

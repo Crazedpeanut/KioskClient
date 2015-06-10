@@ -1,0 +1,18 @@
+Check in:
+
+	do something if it took too long to checkin
+	modify the points system based on some sort of variables such as speed, correct kiosk etc
+	
+	for file checkins: add points, correct kiosks?
+
+	
+	 maybe instead of throwing away cheating attempts, log it in its own table so can see users 'cheating' logs?
+	
+add way for multiple devices (make a device model and foreign key it to user)
+	
+nice to have: 
+	sick graph page
+	user_details_search.html and kiosk.html need stuff
+	
+BUGS:
+	lots of 'profiles' arent being pulled when displaying their profile, due to a get problem

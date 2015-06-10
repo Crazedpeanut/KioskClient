@@ -1,0 +1,16 @@
+{% extends 'main_site/base.html' %}
+
+{% block content %}
+	{% if error_message %}
+		{{ error_message }}
+	{% else %}
+		Retrieved info from {{ heartbeat.kiosk.address }}
+		<br/>
+		at IP {{ heartbeat.ip }}
+		<br/>
+		using own time of {{ heartbeat.date_kiosk }}
+		<br/>
+		at a server time of {{ heartbeat.date_server }}
+	{% endif %}
+{% endblock %}
+

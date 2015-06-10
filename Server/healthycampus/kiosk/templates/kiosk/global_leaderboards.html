@@ -1,0 +1,97 @@
+{% extends 'main_site/base.html' %}
+
+{% block head %}
+	<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.11.2/jquery.min.js"></script>
+	
+	<script>
+	$( document ).ready(function() {
+		$('.expandStart').nextUntil('div.expandEnd').hide();
+		
+		$('.expandStart').click(function(){
+			$(this).nextUntil('span.expandEnd').toggle();
+			$(this).find('td').text(function (_, value) {
+            	return value == 'See More' ? 'See Less' : 'See More';
+        	});
+		});
+	});
+	</script>
+	
+{% endblock %}
+
+{% block content %}
+
+	{% if most_points_list %}
+		<h1>Most Points</h1>
+		<table class="table table-bordered">
+		<th>Rank</th><th>User</th> <th>Points</th>
+		{% for user in most_checkin_list %}
+			<tr><td>{{ forloop.counter }}</td><td><a href="{% url 'kiosk:user_detail_search' %}{{ user.barcode }}">{{ user.barcode }}</a></td><td>{{ user.points }}</td>
+			{% if forloop.counter == 10 %}
+				<tr class="expandStart">
+        			<td colspan="3">See More</td>            
+   	 			</tr>
+			{% endif %}
+		{% endfor %}
+		<span class="expandEnd"></span>
+		</table>  
+	{% endif %}
+
+	{% if most_checkin_list %}
+		<h1>Most Check-Ins</h1>
+		<table class="table table-bordered">
+		<th>Rank</th><th>User</th> <th>Check-In Count</th>
+		{% for user in most_checkin_list %}
+			<tr><td>{{ forloop.counter }}</td><td><a href="{% url 'kiosk:user_detail_search' %}{{ user.barcode }}">{{ user.barcode }}</a></td><td>{{ user.amount }}</td>
+			{% if forloop.counter == 10 %}
+				<tr class="expandStart">
+        			<td colspan="3">See More</td>            
+   	 			</tr>
+			{% endif %}
+		{% endfor %}
+		<span class="expandEnd"></span>
+		</table>  
+	{% endif %}
+	
+	{% if most_distance_list %}
+		<h1>Most Distance Travelled</h1>
+		<table class="table table-bordered">
+		<th>Rank</th><th>User</th> <th>Distance</th>
+		{% for user in most_distance_list %}
+    		<tr><td> {{ forloop.counter }}</td><td><a href="{% url 'kiosk:user_detail_search' %}{{ user.barcode }}">{{ user.barcode }}</a></td><td>{{ user.distance_travelled_m }}m</td>
+			{% if forloop.counter == 10 %}
+				<tr class="expandStart">
+        			<td colspan="3">See More</td>            
+   	 			</tr>
+			{% endif %}
+		{% endfor %}
+		<span class="expandEnd"></span>
+		</table>
+	{% endif %}
+	
+	{% if kiosk_checkin_list %}
+		<h1>Most Kiosk Check-Ins</h1>
+		<table class="table table-bordered">
+		<th>Name</th> <th>Check-In Count</th>
+		{% for kiosk in kiosk_checkin_list %}
+    		<tr><td>{{ kiosk.name }}</td><td>{{ kiosk.amount }}</td>
+			{% if forloop.counter == 10 %}
+				<tr class="expandStart">
+        			<td colspan="2">See More</td>            
+   	 			</tr>
+			{% endif %}
+		{% endfor %}
+		<span class="expandEnd"></span>
+		</table>
+	{% endif %}
+	
+	{% if recent_checkin_list %}
+		<h1>Recent Check Ins</h1>
+		<table class="table table-bordered">
+		<th>Kiosk Name</th> <th>Barcode</th> <th>Date</th>
+		{% for i in recent_checkin_list %}
+    		<tr><td>{{ i.kiosk.name }}</td><td>{{ i.user.barcode }}</td><td>{{ i.date }}</td></tr>
+		{% endfor %}
+		</table>
+	{% endif %}
+	
+{% endblock %}

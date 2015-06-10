@@ -1,0 +1,17 @@
+{% extends 'main_site/base.html' %}
+
+{% block content %}
+	{% if error_message %}
+		{{ error_message }}
+	{% else %}
+		Checked into {{ checkin.kiosk.address }}
+		<br/>
+		at {{ checkin.date }}
+		<br/>
+		using code {{ checkin.user.barcode }}
+		<br/>
+		travelling {{ checkin.distance.distance_m }} meters
+		<br/>
+		with a time of {{ checkin.user_seconds_since_last_checkin }} seconds
+	{% endif %}
+{% endblock %}
