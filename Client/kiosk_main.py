@@ -43,7 +43,10 @@ can = CanOperations()
 
 data_file_operation_queue = queue.Queue()
 
+current_difficulty = 0
+
 class thread_worker(threading.Thread):
+
     def __init__(self, delegate, delegate_params):
         threading.Thread.__init__(self)
         self.delegate = delegate
@@ -56,9 +59,12 @@ class thread_worker(threading.Thread):
             self.delegate()
 
 def create_check_in(barcode):	
+
+    global current_difficulty
+
     kiosk = socket.gethostname()
     timestamp = str(datetime.datetime.now())
-    diff = 0 #TEMPORARY VALUE
+    diff = current_difficulty
     return {"checkin":{"barcode": barcode, "address": kiosk, "timestamp":timestamp, "difficulty":diff}}
 
 def file_operation_queue_add(delegate, params):
@@ -222,8 +228,35 @@ def ticker(params):
             delegate()
 
 def button_handler(address, esource, eclass, num):
+    
+    global current_difficulty
     print("Button %d pressed" % num)
+    diff = 0
+
+    if(num == 1):
+        diff = 1
+    elif(num == 2):
+        diff = 3
+    elif(num == 3):
+        diff = 5
+
+    params = {'difficulty':diff}
+
+    if(current_difficulty is 0 and eclass == 0):
+        create_thread_worker(set_current_difficulty, params)
 			
+def set_current_difficulty(params):
+    global current_difficulty
+    
+    diff = params['difficulty']
+
+    if(current_difficulty is 0):
+            current_difficulty = diff
+            print('difficulty is ', diff)
+            time.sleep(5)
+            current_difficulty = 0
+            print('difficulty is 0')
+
 def main():
     bcode_listen.start_listening(bcode_handler)
     

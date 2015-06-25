@@ -6,7 +6,6 @@ Date: 18/12/14
 
 Description: Main script for the kiosk application. Functions called from the main loop are ran in separate threads
 '''
-#TODO - Don't add full http request to data file after failed connection
 
 import sqlite3 as lite
 import kiosk_http as http
@@ -21,7 +20,7 @@ import settings
 import queue
 import datetime
 import gzip
-import lightscript_v2 as lb
+from can_stuff import CanOperations
 
 HOST = settings.WEB_SERVER_HOST
 PORT = settings.WEB_SERVER_PORT
@@ -40,9 +39,14 @@ LOCALDB = settings.LOCAL_DB
 
 LAST_SERVER_CONTACT = ""
 
+can = CanOperations()
+
 data_file_operation_queue = queue.Queue()
 
+current_difficulty = 0
+
 class thread_worker(threading.Thread):
+
     def __init__(self, delegate, delegate_params):
         threading.Thread.__init__(self)
         self.delegate = delegate
@@ -55,10 +59,13 @@ class thread_worker(threading.Thread):
             self.delegate()
 
 def create_check_in(barcode):	
+
+    global current_difficulty
+
     kiosk = socket.gethostname()
     timestamp = str(datetime.datetime.now())
-     
-    return {"checkin":{"barcode": barcode, "address": kiosk, "timestamp":timestamp}}
+    diff = current_difficulty
+    return {"checkin":{"barcode": barcode, "address": kiosk, "timestamp":timestamp, "difficulty":diff}}
 
 def file_operation_queue_add(delegate, params):
     queue_node = {"delegate" : delegate, "params":params}
@@ -113,13 +120,12 @@ def send_heartbeat():
     
     if(result is not None):
         http_result_handler(result)
-        send_stored_data()
         dbug.debug('Heartbeat has been sent')
     else:
         dbug.debug('Heartbeat failed')
         request = str(heartbeat)
-        params = {"request": request}
-        file_operation_queue_add(record_request, params) 
+        #params = {"request": request}
+        #file_operation_queue_add(record_request, params) 
         
 def send_checkin(checkin):
     check_in_data = checkin["checkin"]
@@ -131,9 +137,9 @@ def send_checkin(checkin):
         dbug.debug('Checkin has been sent')
     else:
         dbug.debug('Checkin sending failed')
-        request = str(checkin)
+        '''request = str(checkin)
         params = {"request": request}
-        file_operation_queue_add(record_request, params) 
+        file_operation_queue_add(record_request, params) '''
 
 def send_stored_data(): 
     db_conn = lite.connect(LOCALDB)
@@ -174,7 +180,9 @@ def send_stored_data():
         dbug.debug("Couldn't send stored checkins this time..")
      
 def http_result_handler(result):
-    command_list = {"play_sequence":commands.play_sequence,"test": commands.test_command, "loadsequence":commands.load_sequence, "printdata":commands.print_data, "updateleds":commands.update_lights, "blanklightars":commands.blank_lightbars}
+    
+    canCommands = can.can
+    command_list = {"play_sequence":canCommands.play_sequence, "loadsequence":canCommands.load_sequence, "updateleds":canCommands.update_lights, "blanklightars":canCommands.blank_lightbars}
 
     LAST_SERVER_CONTACT = datetime.datetime.now()
 
@@ -195,6 +203,7 @@ def http_result_handler(result):
 def bcode_handler(bcode):
     #lb.swipe_right_all(255, 0, 0)
     bcode = bcode.rstrip()
+    dbug.debug("Got a barcode!: %s" % bcode)
     check_in = create_check_in(bcode)
     dbug.debug('adding thread worker..')
     create_thread_worker(send_checkin, check_in)
@@ -218,8 +227,40 @@ def ticker(params):
         else:
             delegate()
 
+def button_handler(address, esource, eclass, num):
+    
+    global current_difficulty
+    print("Button %d pressed" % num)
+    diff = 0
+
+    if(num == 1):
+        diff = 1
+    elif(num == 2):
+        diff = 3
+    elif(num == 3):
+        diff = 5
+
+    params = {'difficulty':diff}
+
+    if(current_difficulty is 0):
+        create_thread_worker(set_current_difficulty, params)
+			
+def set_current_difficulty(params):
+    global current_difficulty
+    
+    diff = params['difficulty']
+
+    if(current_difficulty is 0):
+            current_difficulty = diff
+            print('difficulty is ', diff)
+            time.sleep(5)
+            current_difficulty = 0
+            print('difficulty is 0')
+
 def main():
     bcode_listen.start_listening(bcode_handler)
+    
+    can.register(button_handler)
     
     ticker_params = {"time":PAUSE_BETWEEN_HEARBEAT, "delegate": send_heartbeat, "delegate_params": None}
     create_thread_worker(ticker, ticker_params)	

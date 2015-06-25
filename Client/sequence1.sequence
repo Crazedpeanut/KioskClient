@@ -1,1 +1,1 @@
-{'loop': '5', 'command': 'loadsequence', 'fps': '1', 'frames': [{'leds': [{'y': '4', 'x': '0', 'color': 'FFFFFF'}, {'y': '3', 'x': '0', 'color': 'FFFFFF'}, {'y': '2', 'x': '0', 'color': 'FFFFFF'}, {'y': '-1', 'x': '-1', 'color': 'FFFFFF'}, {'y': '1', 'x': '0', 'color': 'FFFFFF'}]}], 'sequence_num': '1'}
+{'sequence_num': '1', 'command': 'loadsequence', 'loop': '5', 'fps': '1', 'frames': [{'leds': [{'color': '0xffffff', 'y': '0', 'x': '2'}]}]}
